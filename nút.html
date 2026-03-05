@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>The Risky Red Button - Text NPC Only</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #080808;
+            color: white;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            touch-action: manipulation;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .screen {
+            height: 100vh;
+            display: none;
+            flex-direction: column; 
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .red-button {
+            width: min(65vw, 260px);
+            height: min(65vw, 260px);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 10;
+            border: 4px solid rgba(255,255,255,0.1);
+        }
+
+        .red-button:active {
+            transform: translateY(12px) scale(0.95);
+            filter: brightness(0.7);
+        }
+
+        /* Skins */
+        .s-0 { background: radial-gradient(circle at 30% 30%, #8b4513, #3e1f0a); box-shadow: 0 15px 0 #2a1506; }
+        .s-1 { background: radial-gradient(circle at 30% 30%, #cd7f32, #7c4d1e); box-shadow: 0 15px 0 #45260a; }
+        .s-2 { background: radial-gradient(circle at 30% 30%, #d4d4d8, #52525b); box-shadow: 0 15px 0 #27272a; }
+        .s-3 { background: radial-gradient(circle at 30% 30%, #f8fafc, #94a3b8); box-shadow: 0 15px 0 #475569; }
+        .s-4 { background: radial-gradient(circle at 30% 30%, #fcd34d, #b45309); box-shadow: 0 15px 0 #78350f; }
+        .s-5 { background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b); box-shadow: 0 15px 0 #7f1d1d; }
+        .s-10 { background: linear-gradient(45deg, #6366f1, #d946ef, #f43f5e); box-shadow: 0 15px 0 #4338ca; animation: rainbow 3s infinite linear; }
+
+        @keyframes rainbow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+
+        /* Effects */
+        .shaking-extreme { animation: shock-extreme 0.04s infinite; }
+        @keyframes shock-extreme {
+            0% { transform: translate(0,0) rotate(0); }
+            20% { transform: translate(-15px, 15px) rotate(-3deg); }
+            40% { transform: translate(15px, -15px) rotate(3deg); }
+            60% { transform: translate(-15px, -15px) rotate(-3deg); }
+            80% { transform: translate(15px, 15px) rotate(3deg); }
+            100% { transform: translate(0,0) rotate(0); }
+        }
+
+        .exploding { animation: explode 0.8s forwards; }
+        @keyframes explode {
+            0% { opacity: 1; transform: scale(1); }
+            10% { opacity: 1; transform: scale(1.5); filter: brightness(10); }
+            100% { opacity: 0; transform: scale(30); background: white; }
+        }
+
+        /* NPC - Góc dưới bên trái, chỉ chữ */
+        .npc-box {
+            transition: all 0.3s ease-out;
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            z-index: 50;
+        }
+        .npc-hidden { transform: translateX(-120%); opacity: 0; }
+        .npc-visible { transform: translateX(0); opacity: 1; }
+
+        .box-container {
+            width: 100%;
+            max-width: 400px;
+            max-height: 50vh;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body id="body-main">
+
+    <!-- LOGIN MODAL -->
+    <div id="modal-name" class="fixed inset-0 bg-black z-[300] flex items-center justify-center p-8" style="display: none;">
+        <div class="w-full max-w-xs text-center">
+            <h1 class="text-3xl font-black mb-6 text-red-600 uppercase italic">DANH TÁNH?</h1>
+            <input type="text" id="input-name" maxlength="12" placeholder="Nhập tên..." 
+                class="w-full bg-zinc-900 border border-white/10 p-5 rounded-2xl mb-6 text-center text-white font-bold text-xl outline-none focus:border-red-500">
+            <button id="btn-confirm-name" class="w-full bg-red-600 py-5 rounded-2xl font-black text-white uppercase shadow-xl active:scale-95 transition-transform">XÁC NHẬN</button>
+        </div>
+    </div>
+
+    <!-- HOME -->
+    <div id="home-screen" class="screen active">
+        <h1 class="text-5xl font-black mb-1 text-center text-red-600 italic uppercase tracking-tighter">THE RISKY<br>BUTTON</h1>
+        <div id="welcome-msg" class="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em] mb-12">Chào mừng kẻ liều mạng</div>
+        
+        <div class="flex flex-col gap-3 w-full max-w-[260px]">
+            <button onclick="navigate('game')" class="bg-red-600 py-5 rounded-2xl font-black text-xl shadow-lg active:scale-95">CHƠI NGAY</button>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="navigate('shop')" class="bg-zinc-800 py-4 rounded-xl font-bold text-xs border border-white/10">Cửa Hàng</button>
+                <button onclick="navigate('exchange')" class="bg-zinc-800 py-4 rounded-xl font-bold text-xs border border-white/10 text-yellow-500">Đổi Token</button>
+            </div>
+            <button onclick="navigate('lb')" class="bg-zinc-900 py-3 rounded-xl font-bold text-[10px] text-zinc-500 border border-white/5">BẢNG XẾP HẠNG</button>
+        </div>
+    </div>
+
+    <!-- GAME -->
+    <div id="game-screen" class="screen">
+        <div class="absolute top-10 left-8">
+            <button onclick="navigate('home')" class="text-[10px] font-bold text-zinc-500 uppercase">← Thoát</button>
+        </div>
+        
+        <div class="absolute top-10 right-8 text-right flex flex-col gap-1">
+            <div class="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                <div class="text-[8px] text-zinc-500 uppercase font-black">Kỷ lục</div>
+                <div id="high-score" class="text-xl font-black text-red-500 leading-none">0</div>
+            </div>
+            <div class="bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-500/20">
+                <div class="text-[8px] text-yellow-500 uppercase font-black">Token</div>
+                <div id="token-display-game" class="text-xl font-black text-yellow-500 leading-none">0</div>
+            </div>
+        </div>
+
+        <div class="mb-6 text-center">
+            <div id="current-skin-name" class="text-[9px] text-zinc-400 uppercase font-bold tracking-widest mb-1">Nút Rỉ Sét</div>
+            <div id="risk-display" class="text-3xl font-black text-white">0%</div>
+        </div>
+
+        <div id="main-button" class="red-button s-0">
+            <span id="counter" class="text-6xl font-black text-white">0</span>
+        </div>
+        
+        <div class="mt-8 text-center text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+            <span id="multiplier-text">x1 điểm mỗi lần nhấn</span>
+        </div>
+
+        <!-- NPC CHỈ CHỮ - GÓC DƯỚI BÊN TRÁI -->
+        <div id="npc-container" class="npc-box npc-hidden">
+            <div class="bg-white text-black py-2 px-4 rounded-lg shadow-2xl border-l-4 border-red-600 max-w-[220px]">
+                <p id="npc-text" class="text-[11px] font-bold uppercase tracking-tight leading-tight italic">Gà vl!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXCHANGE -->
+    <div id="exchange-screen" class="screen">
+        <h2 class="text-2xl font-black mb-4 uppercase italic text-yellow-500">SÀN TRAO ĐỔI</h2>
+        <div class="w-full max-w-xs bg-zinc-900 p-8 rounded-3xl border border-white/10 text-center">
+            <div class="text-[10px] text-zinc-500 uppercase mb-1">Điểm đang có</div>
+            <div id="exchange-points" class="text-4xl font-black text-white mb-6">0</div>
+            <button id="btn-do-exchange" class="w-full bg-yellow-600 py-5 rounded-2xl font-black text-white uppercase shadow-xl">ĐỔI TẤT CẢ</button>
+        </div>
+        <button onclick="navigate('home')" class="mt-8 text-zinc-600 font-bold uppercase text-[10px]">Quay lại</button>
+    </div>
+
+    <!-- SHOP -->
+    <div id="shop-screen" class="screen">
+        <div class="flex justify-between items-end w-full max-w-[400px] mb-6 px-4">
+            <h2 class="text-2xl font-black uppercase italic text-yellow-500">CỬA HÀNG</h2>
+            <div class="text-xl font-black text-yellow-500"><span id="token-display-shop">0</span> TK</div>
+        </div>
+        <div class="box-container p-4 flex flex-col gap-3" id="shop-content"></div>
+        <button onclick="navigate('home')" class="mt-8 text-zinc-500 font-bold uppercase text-[10px]">Quay lại</button>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div id="lb-screen" class="screen">
+        <h2 class="text-2xl font-black mb-6 uppercase italic text-red-600">BẢNG VÀNG</h2>
+        <div class="box-container" id="lb-content"></div>
+        <button onclick="navigate('home')" class="mt-8 text-zinc-500 font-bold uppercase text-[10px]">Quay lại</button>
+    </div>
+
+    <div id="flash" class="fixed inset-0 pointer-events-none z-[100] opacity-0 bg-white"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDk77FqnJtfnXCh-Isl7a33C_lgIwAVa9k",
+            authDomain: "nutbam.firebaseapp.com",
+            projectId: "nutbam",
+            storageBucket: "nutbam.firebasestorage.app",
+            messagingSenderId: "186558411035",
+            appId: "1:186558411035:web:c00f2dccf3d23bc9d0e3be"
+        };
+
+        const CUSTOM_APP_ID = "nut-bam-v2";
+
+        const AUDIO_EXPLOSION = "https://actions.google.com/sounds/v1/explosions/medium_explosion.ogg";
+        const AUDIO_CLICK = "https://actions.google.com/sounds/v1/science_fiction/click_short.ogg";
+        
+        const NPC_LINES = [
+            "Lì nhỉ?", 
+            "Sợ nổ không cưng?", 
+            "Dừng lại là hèn!", 
+            "Ấn tiếp đi, đừng sợ!", 
+            "Nổ chết bây giờ!", 
+            "Căng thẳng thế?", 
+            "Yếu bóng vía à?",
+            "Ngon thì làm trăm cái xem?"
+        ];
+
+        const NPC_FAIL_LINES = [
+            "Ngu chưa em?", 
+            "Gà vl!", 
+            "Non lắm!", 
+            "Mất trắng nhé!", 
+            "Đen thôi đỏ quên đi!",
+            "Tay nhanh hơn não à?",
+            "Về tập thêm đi nhé!"
+        ];
+
+        const SKINS = [
+            { n: "Rỉ Sét", c: 0, m: 1, cls: "s-0" },
+            { n: "Đồng", c: 100, m: 3, cls: "s-1" },
+            { n: "Sắt", c: 500, m: 10, cls: "s-2" },
+            { n: "Bạc", c: 2000, m: 50, cls: "s-3" },
+            { n: "Vàng", c: 10000, m: 250, cls: "s-4" },
+            { n: "Ruby", c: 50000, m: 1000, cls: "s-5" },
+            { n: "Vô Cực", c: 1000000, m: 10000, cls: "s-10" }
+        ];
+
+        let count = 0, tokens = parseInt(localStorage.getItem('rb_tokens')) || 0;
+        let highScore = parseInt(localStorage.getItem('rb_hs')) || 0;
+        let playerName = localStorage.getItem('rb_name') || "";
+        let currentSkin = parseInt(localStorage.getItem('rb_skin_idx')) || 0;
+        let ownedSkins = JSON.parse(localStorage.getItem('rb_owned_list')) || [0];
+        let user = null, db, auth;
+
+        const playSfx = (url, vol = 0.5) => {
+            const a = new Audio(url);
+            a.volume = vol;
+            a.play().catch(() => {});
+        };
+
+        // Hàm trigger NPC đã loại bỏ speak()
+        const triggerNPC = (txt) => {
+            const container = document.getElementById('npc-container');
+            const textEl = document.getElementById('npc-text');
+            
+            textEl.innerText = txt;
+            container.classList.remove('npc-hidden');
+            container.classList.add('npc-visible');
+
+            clearTimeout(window.npcTimer);
+            window.npcTimer = setTimeout(() => {
+                container.classList.remove('npc-visible');
+                container.classList.add('npc-hidden');
+            }, 3000);
+        };
+
+        window.navigate = (id) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id + '-screen').classList.add('active');
+            if(id === 'shop') renderShop();
+            if(id === 'lb') fetchLeaderboard();
+            updateUI();
+        };
+
+        function updateUI() {
+            document.getElementById('counter').innerText = Math.floor(count);
+            document.getElementById('high-score').innerText = Math.floor(highScore);
+            document.getElementById('token-display-game').innerText = tokens;
+            document.getElementById('token-display-shop').innerText = tokens;
+            document.getElementById('exchange-points').innerText = Math.floor(count);
+            
+            const risk = Math.min(count * 0.5, 99.9);
+            document.getElementById('risk-display').innerText = risk.toFixed(1) + "%";
+            document.getElementById('current-skin-name').innerText = SKINS[currentSkin].n;
+            document.getElementById('main-button').className = "red-button " + SKINS[currentSkin].cls;
+            if(playerName) document.getElementById('welcome-msg').innerText = `Player: ${playerName}`;
+        }
+
+        document.getElementById('main-button').onclick = () => {
+            let risk = Math.min(count * 0.5, 99.9);
+            playSfx(AUDIO_CLICK, 0.3);
+
+            if (Math.random() * 100 < risk) {
+                playSfx(AUDIO_EXPLOSION, 1);
+                document.getElementById('flash').classList.add('exploding');
+                document.getElementById('body-main').classList.add('shaking-extreme');
+                if ("vibrate" in navigator) navigator.vibrate([300, 100, 300]);
+
+                const failMsg = NPC_FAIL_LINES[Math.floor(Math.random() * NPC_FAIL_LINES.length)];
+                triggerNPC(failMsg);
+
+                setTimeout(() => {
+                    document.getElementById('flash').classList.remove('exploding');
+                    document.getElementById('body-main').classList.remove('shaking-extreme');
+                    count = 0;
+                    updateUI();
+                }, 1000);
+            } else {
+                count += SKINS[currentSkin].m;
+                if (count > highScore) {
+                    highScore = count;
+                    localStorage.setItem('rb_hs', highScore);
+                    syncHighScore();
+                }
+
+                // Hiển thị NPC khịa khi bấm
+                if (count > 0 && count % 15 === 0 && Math.random() > 0.4) {
+                    const msg = NPC_LINES[Math.floor(Math.random() * NPC_LINES.length)];
+                    triggerNPC(msg);
+                }
+            }
+            updateUI();
+        };
+
+        async function syncHighScore() {
+            if (!user || !playerName || highScore <= 0 || !db) return;
+            try {
+                const userDoc = doc(db, 'artifacts', CUSTOM_APP_ID, 'public', 'data', 'leaderboard', user.uid);
+                await setDoc(userDoc, { name: playerName, score: highScore, userId: user.uid, updatedAt: Date.now() }, { merge: true });
+            } catch(e) {}
+        }
+
+        function fetchLeaderboard() {
+            const container = document.getElementById('lb-content');
+            container.innerHTML = '<div class="p-10 text-center text-zinc-600 font-bold uppercase animate-pulse">Đang tải...</div>';
+            const q = collection(db, 'artifacts', CUSTOM_APP_ID, 'public', 'data', 'leaderboard');
+            onSnapshot(q, (snap) => {
+                let data = [];
+                snap.forEach(d => data.push(d.data()));
+                data.sort((a,b) => b.score - a.score);
+                container.innerHTML = data.slice(0, 20).map((p, i) => `
+                    <div class="flex justify-between items-center p-5 border-b border-white/5 ${p.userId === user?.uid ? 'bg-red-600/10' : ''}">
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-black text-zinc-600">${i+1}</span>
+                            <span class="font-bold text-sm">${p.name}</span>
+                        </div>
+                        <span class="font-black text-red-500 text-lg">${Math.floor(p.score)}</span>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function renderShop() {
+            const container = document.getElementById('shop-content');
+            container.innerHTML = SKINS.map((s, i) => {
+                const owned = ownedSkins.includes(i);
+                const active = currentSkin === i;
+                return `
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full ${s.cls}"></div>
+                        <div class="text-xs font-black uppercase">${s.n} (x${s.m})</div>
+                    </div>
+                    ${active ? '<span class="text-[10px] text-yellow-500 font-black">DÙNG</span>' : 
+                      owned ? `<button onclick="window.useSkin(${i})" class="bg-zinc-700 px-4 py-2 rounded-xl text-[8px] font-black uppercase">CHỌN</button>` :
+                      `<button onclick="window.buySkin(${i})" class="${tokens >= s.c ? 'bg-yellow-600' : 'bg-zinc-800 text-zinc-600'} px-4 py-2 rounded-xl text-[8px] font-black uppercase">${s.c} TK</button>`}
+                </div>`;
+            }).join('');
+        }
+
+        window.buySkin = (i) => {
+            if (tokens >= SKINS[i].c) {
+                tokens -= SKINS[i].c;
+                ownedSkins.push(i);
+                localStorage.setItem('rb_tokens', tokens);
+                localStorage.setItem('rb_owned_list', JSON.stringify(ownedSkins));
+                renderShop(); updateUI();
+            }
+        };
+
+        window.useSkin = (i) => {
+            currentSkin = i;
+            localStorage.setItem('rb_skin_idx', i);
+            renderShop(); updateUI();
+        };
+
+        async function init() {
+            document.getElementById('btn-do-exchange').onclick = () => {
+                if (count > 0) {
+                    tokens += Math.floor(count);
+                    count = 0;
+                    localStorage.setItem('rb_tokens', tokens);
+                    updateUI();
+                    navigate('home');
+                    triggerNPC("Đổi token thành công!");
+                }
+            };
+
+            document.getElementById('btn-confirm-name').onclick = () => {
+                const val = document.getElementById('input-name').value.trim();
+                if (val.length >= 2) {
+                    playerName = val;
+                    localStorage.setItem('rb_name', val);
+                    document.getElementById('modal-name').style.display = 'none';
+                    updateUI();
+                    syncHighScore();
+                }
+            };
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (u) => {
+                    if (u) {
+                        user = u;
+                        if (!playerName) document.getElementById('modal-name').style.display = 'flex';
+                    }
+                });
+            } catch(e) { console.warn("Firebase Offline Mode"); }
+        }
+
+        window.onload = init;
+        updateUI();
+    </script>
+</body>
+</html>
